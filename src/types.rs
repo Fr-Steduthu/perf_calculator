@@ -63,14 +63,14 @@ impl MathObject {
         let (min, max) = {
             let mut min = values[0];
             let mut max = values[0];
-            for v in values.iter() {
-                if *v < min {
-                    min = *v;
+            for v in values.clone() {
+                if v.clone() < min {
+                    min = v;
                     continue;
                 }
 
-                if max > *v {
-                    max = *v;
+                if max < v.clone() {
+                    max = v;
                     continue;
                 }
             }
