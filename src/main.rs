@@ -10,12 +10,14 @@ fn parse_args() -> Result<(String, u32, bool, bool, Vec<String>), String> {
     let args = std::env::args();
     if std::env::args().nth(1).unwrap() == "-h".to_string() {
         println!(
-            "perf_calculator <exePath>\n\r\
+            "perf_calculator <exePath> -- <exe arguments>\n\r\
              \toptions:\n\r\
              \t\t-h\t\t\t| Displays this list\n\r\
              \t\t--iterations <integer>\t| Set the number of iterations to be performed (default: 10)\n\r\
              \t\t--threaded\t\t| Gives each iteration a separate thread to run on\n\r\
              \t\t--no-capture\t\t| Displays the stdout of the target program\n\r\
+             \tother:\n\r\
+             \t\tAdd -- <executable arguments> if your program takes specific arguments when invoked\n\r\
              "
         );
         return Err("Displayed the help command".to_string());
