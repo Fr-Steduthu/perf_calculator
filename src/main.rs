@@ -5,7 +5,7 @@ pub mod types;
 pub mod io;
 pub mod exec;
 
-fn parse_args() -> Result<(String, u32, bool, bool, Vec<String>), String> {
+fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<String>), String> {
 
     let args = std::env::args();
     if std::env::args().nth(1).unwrap() == "-h".to_string() {
@@ -14,7 +14,8 @@ fn parse_args() -> Result<(String, u32, bool, bool, Vec<String>), String> {
              \toptions:\n\r\
              \t\t-h\t\t\t| Displays this list\n\r\
              \t\t--iterations <integer>\t| Set the number of iterations to be performed (default: 10)\n\r\
-             \t\t--threaded\t\t| Gives each iteration a separate thread to run on\n\r\
+             \t\t--threaded\t\t| Gives each iteration a separate thread to run on (de-activated for accuracy)\n\r\
+             \t\t--md\t\t\t| Outputs as markdown-formatted string representing a table of the results\n\r\
              \t\t--no-capture\t\t| Displays the stdout of the target program\n\r\
              \tother:\n\r\
              \t\tAdd -- <executable arguments> if your program takes specific arguments when invoked\n\r\
@@ -28,6 +29,7 @@ fn parse_args() -> Result<(String, u32, bool, bool, Vec<String>), String> {
     let mut threaded = false;
     let mut no_capture = false;
     let mut exec_args = vec![];
+    let mut md = false;
 
     let mut _iterations_found = false;
     let mut _iterations_complete = false;
@@ -45,49 +47,89 @@ fn parse_args() -> Result<(String, u32, bool, bool, Vec<String>), String> {
 
         if *arg == "--no-capture".to_string() { no_capture = true; continue; }
 
+        if *arg == "--md".to_string() { md = true; continue;}
+
         if *arg == "--".to_string() { exec_args = args.step_by(index+1).collect::<Vec<String>>(); exec_args.remove(0); break; }
 
         panic!("Argument n°{index}: {arg} not recognized!")
     }
 
-    Ok((exe_name, iterations, false, no_capture, exec_args)) // --threaded desactive
+    Ok((exe_name, iterations, md, false, no_capture, exec_args)) // --threaded desactive
 }
 
 fn main() {
-    if std::env::args().len() >= 2 {
+    if std::env::args().len() >= 2 { // Entree automatique
 
-        let (exe_name, nb_iter, threaded, no_capture, exec_args) = match parse_args() {
+        let (exe_name, nb_iter, as_md, threaded, no_capture, exec_args) = match parse_args() {
             Ok(v) => v,
             Err(_) => return,
         };
 
+        let mut durations = vec![];
+
+        //Measurements
+
         if !threaded {
-            let mut durations = vec![];
+
             for _ in 0..nb_iter {
                 durations.push(exec::measure(exe_name.clone(), exec_args.clone(), !no_capture));
             }
 
-            write!(std::io::stdout(), "\n\rResults -> \n{}", types::MathObject::new(durations).unwrap()).unwrap();
-            return;
+        } else {
+
+            let mut threads = vec![];
+            for _ in 0..nb_iter {
+                threads.push(std::thread::spawn(
+                    {
+                        let (arg1, arg2, arg3) = (exe_name.clone(), exec_args.clone(), !no_capture);
+                        move || {
+                            exec::measure(arg1, arg2, arg3)
+                        }
+                    }));
+            }
+
+            for thread_handle in threads {
+                durations.push(thread_handle.join().unwrap());
+            }
         }
 
-        let mut threads = vec![];
-        for _ in 0..nb_iter {
-            threads.push(std::thread::spawn(
-                {
-                    let (arg1, arg2, arg3) = (exe_name.clone(), exec_args.clone(), !no_capture);
-                    move || {
-                        exec::measure(arg1, arg2, arg3)
-                    }
-                }));
+        // Display
+
+        if !as_md {
+            write!(std::io::stdout(), "\n\r{}", types::MathObject::new(durations).unwrap()).unwrap();
+        } else {
+            let (result, math) = types::MathObject::new(durations).unwrap().to_table(exec_args);
+            let l0 = result.0.join("|");
+            let l1 = {
+                let mut res = vec!["|".to_string()];
+                for _ in 0..result.1.len() {
+                    res.push(":---:|".to_string());
+                }
+                res.join("")
+            };
+            let l2 = result.1.join("|");
+
+            let l3 = math.0.join("|");
+            let l4 = {
+                let mut res = vec!["|".to_string()];
+                for _ in 0..math.1.len() {
+                    res.push(":---:|".to_string());
+                }
+                res.join("")
+            };
+            let l5 = math.1.join("|");
+
+            write!(std::io::stdout(),
+                   "\n\r|{l0}|\n\r\
+                   {l1}\n\r\
+                   |{l2}|\n\r\
+                   \n\r\
+                   |{l3}|\n\r\
+                   {l4}\n\r\
+                   |{l5}|\
+            ").unwrap();
         }
 
-        let mut durations = vec![];
-        for thread_handle in threads {
-            durations.push(thread_handle.join().unwrap());
-        }
-
-        write!(std::io::stdout(), "\n\r{}", types::MathObject::new(durations).unwrap()).unwrap();
         return;
 
     } else {
