@@ -5,7 +5,7 @@ pub mod types;
 pub mod io;
 pub mod exec;
 
-fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<String>), String> {
+fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<Vec<String>>), String> {
 
     let args = std::env::args();
     if std::env::args().nth(1).unwrap() == "-h".to_string() {
@@ -26,7 +26,7 @@ fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<String>), String> 
 
     let mut exe_name = "".to_string();
     let mut iterations = 10u32;
-    let mut threaded = false;
+    let mut _threaded = false;
     let mut no_capture = false;
     let mut exec_args = vec![];
     let mut md = false;
@@ -36,6 +36,12 @@ fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<String>), String> 
 
     for (arg, index) in std::env::args().zip(0..args.len()) {
 
+        if exec_args.len() != 0 { // Capture les arguments
+            if *arg == "--".to_string() { exec_args.push(vec![]); continue; }
+            exec_args.last_mut().unwrap().push(arg);
+            continue;
+        }
+        
         if index == 0 { let _ = arg; continue; }
 
         if index == 1 { exe_name = arg.clone(); continue; } // TODO : Verifier que le chemin existe bien
@@ -43,13 +49,16 @@ fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<String>), String> 
         if *arg == "--iterations".to_string() { _iterations_found = true; continue; }
         if _iterations_found && !_iterations_complete { _iterations_complete = true; iterations = i32::from_str(arg.as_str()).unwrap() as u32 }
 
-        if *arg == "--threaded".to_string() { threaded = true; continue; }
+        if *arg == "--threaded".to_string() { panic!("De-activated argument --threaded for inaccuracy"); /*threaded = true; continue;*/ }
 
         if *arg == "--no-capture".to_string() { no_capture = true; continue; }
 
         if *arg == "--md".to_string() { md = true; continue;}
 
-        if *arg == "--".to_string() { exec_args = args.step_by(index+1).collect::<Vec<String>>(); exec_args.remove(0); break; }
+        /* Exec_args collecting */
+
+        if *arg == "--".to_string() { exec_args.push(vec![]); continue; }
+
 
         panic!("Argument n°{index}: {arg} not recognized!")
     }
@@ -65,69 +74,79 @@ fn main() {
             Err(_) => return,
         };
 
-        let mut durations = vec![];
+        let mut global_durations : Vec<Vec<u32>> = Vec::with_capacity(exec_args.len());
+
 
         //Measurements
 
         if !threaded {
-
-            for _ in 0..nb_iter {
-                durations.push(exec::measure(exe_name.clone(), exec_args.clone(), !no_capture));
-            }
-
-        } else {
-
-            let mut threads = vec![];
-            for _ in 0..nb_iter {
-                threads.push(std::thread::spawn(
-                    {
-                        let (arg1, arg2, arg3) = (exe_name.clone(), exec_args.clone(), !no_capture);
-                        move || {
-                            exec::measure(arg1, arg2, arg3)
-                        }
-                    }));
-            }
-
-            for thread_handle in threads {
-                durations.push(thread_handle.join().unwrap());
+            for (args, i) in exec_args.iter().zip(0..exec_args.len()){
+                global_durations.push(vec![]);
+                for _ in 0..nb_iter {
+                    global_durations[i].push(exec::measure(exe_name.clone(), args.clone(), !no_capture));
+                }
             }
         }
 
         // Display
 
         if !as_md {
-            write!(std::io::stdout(), "\n\r{}", types::MathObject::new(durations).unwrap()).unwrap();
+            for iteration_durations in global_durations {
+                write!(std::io::stdout(), "\n\r{}", types::MathObject::new(iteration_durations).unwrap()).unwrap();
+            }
+
         } else {
-            let (result, math) = types::MathObject::new(durations).unwrap().to_table(exec_args);
-            let l0 = result.0.join("|");
-            let l1 = {
-                let mut res = vec!["|".to_string()];
-                for _ in 0..result.1.len() {
-                    res.push(":---:|".to_string());
-                }
-                res.join("")
-            };
-            let l2 = result.1.join("|");
+            let (mut header_results, mut header_stats) = ("".to_string(), "".to_string());
+            let mut __header_initialized = false;
 
-            let l3 = math.0.join("|");
-            let l4 = {
-                let mut res = vec!["|".to_string()];
-                for _ in 0..math.1.len() {
-                    res.push(":---:|".to_string());
-                }
-                res.join("")
-            };
-            let l5 = math.1.join("|");
+            let mut count_results = 0;
+            let mut count_stats = 0;
 
-            write!(std::io::stdout(),
-                   "\n\r|{l0}|\n\r\
-                   {l1}\n\r\
-                   |{l2}|\n\r\
-                   \n\r\
-                   |{l3}|\n\r\
-                   {l4}\n\r\
-                   |{l5}|\
-            ").unwrap();
+            let (mut separator_results, mut separator_stats) = (vec![], vec![]);
+            let (mut results, mut stats) = (vec![], vec![]);
+
+            /* Results collecting */
+
+            for (iteration_durations, arguments) in global_durations.into_iter().zip(exec_args) {
+
+                let (result, math) = types::MathObject::new(iteration_durations).unwrap().to_table(arguments);
+
+                if !__header_initialized { // Headers collecting
+                    __header_initialized = true;
+                    header_results = result.0.join("|");
+                    header_stats = math.0.join("|");
+
+                    count_results = result.0.len();
+                    count_stats = math.0.len();
+                }
+
+                results.push(format!("|{}|", result.1.join("|")));
+                stats.push(format!("|{}|", math.1.join("|")));
+            }
+
+            for header_result in 0..count_results {
+                separator_results.push(":---:|");
+            }
+
+            for header_stat in 0..count_stats {
+                separator_stats.push(":---:|");
+            }
+
+            let results = results.join("\n\r");
+            let stats = stats.join("\n\r");
+
+            let separator_results = separator_results.join("");
+            let separator_stats = separator_stats.join("");
+
+            println!("\
+            |{header_results}|\n\r\
+            {separator_results}\n\r\
+            {results}\n\r\
+            \n\r\
+            |{header_stats}|\n\r\
+            {separator_stats}\n\r\
+            {stats}\
+            ")
         }
 
         return;

@@ -1,4 +1,3 @@
-use std::fmt::format;
 
 #[derive(Debug)]
 pub struct MathObject {
