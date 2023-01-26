@@ -41,7 +41,7 @@ fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<Vec<String>>), Str
             exec_args.last_mut().unwrap().push(arg);
             continue;
         }
-
+        
         if index == 0 { let _ = arg; continue; }
 
         if index == 1 { exe_name = arg.clone(); continue; } // TODO : Verifier que le chemin existe bien
@@ -59,6 +59,7 @@ fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<Vec<String>>), Str
 
         if *arg == "--".to_string() { exec_args.push(vec![]); continue; }
 
+
         panic!("Argument n°{index}: {arg} not recognized!")
     }
 
@@ -73,9 +74,8 @@ fn main() {
             Err(_) => return,
         };
 
-        println!("{exec_args:?}");
-
         let mut global_durations : Vec<Vec<u32>> = Vec::with_capacity(exec_args.len());
+
 
         //Measurements
 
