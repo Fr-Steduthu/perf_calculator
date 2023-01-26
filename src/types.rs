@@ -1,4 +1,4 @@
-
+use std::fmt::format;
 
 #[derive(Debug)]
 pub struct MathObject {
@@ -63,21 +63,21 @@ impl MathObject {
         let (min, max) = {
             let mut min = values[0];
             let mut max = values[0];
-            for v in values.iter() {
-                if *v < min {
-                    min = *v;
+            for v in values.clone() {
+                if v.clone() < min {
+                    min = v;
                     continue;
                 }
 
-                if max > *v {
-                    max = *v;
+                if max < v.clone() {
+                    max = v;
                     continue;
                 }
             }
             (min, max)
         };
 
-        Ok(MathObject{
+        Ok(MathObject {
             data: values.clone(),
             nb_datum: nb_values,
             min,
@@ -86,5 +86,34 @@ impl MathObject {
             variance,
             standard_derivation: f64::sqrt(variance),
         })
+    }
+
+    pub fn to_table(&self, args : Vec<String>) -> ((Vec<String>, Vec<String>), (Vec<String>, Vec<String>)) {
+
+        /* Data */
+
+        let mut data_vectors = (vec!["Arguments".to_string()], vec![format!("{args:?}")]);
+        for (duration, iteration) in self.data.iter().zip(1..self.data.len()+1) {
+            data_vectors.0.push(format!("Iteration n°{iteration}"));
+            data_vectors.1.push(format!("{duration} ms"));
+        }
+
+        /* Processed data */
+
+        let mut mathobject_vector = (vec![], vec![]);
+
+        mathobject_vector.0.push("Arguments".to_string());
+        mathobject_vector.0.push("Minimum".to_string());
+        mathobject_vector.0.push("Maximum".to_string());
+        mathobject_vector.0.push("Average".to_string());
+        mathobject_vector.0.push("Standard derivation".to_string());
+
+        mathobject_vector.1.push(format!("{args:?}"));
+        mathobject_vector.1.push(self.min.to_string());
+        mathobject_vector.1.push(self.max.to_string());
+        mathobject_vector.1.push(self.average.to_string());
+        mathobject_vector.1.push(self.standard_derivation.to_string());
+
+        (data_vectors, mathobject_vector)
     }
 }
