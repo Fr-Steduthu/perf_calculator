@@ -34,9 +34,9 @@ fn parse_args() -> Result<(String, u32, bool, bool, Vec<String>), String> {
 
     for (arg, index) in std::env::args().zip(0..args.len()) {
 
-        if index == 0 { continue; }
+        if index == 0 { let _ = arg; continue; }
 
-        if index == 1 { exe_name = arg.clone(); continue; }
+        if index == 1 { exe_name = arg.clone(); continue; } // TODO : Verifier que le chemin existe bien
 
         if *arg == "--iterations".to_string() { _iterations_found = true; continue; }
         if _iterations_found && !_iterations_complete { _iterations_complete = true; iterations = i32::from_str(arg.as_str()).unwrap() as u32 }
@@ -45,10 +45,12 @@ fn parse_args() -> Result<(String, u32, bool, bool, Vec<String>), String> {
 
         if *arg == "--no-capture".to_string() { no_capture = true; continue; }
 
-        if *arg == "--".to_string() { exec_args = args.step_by(index).collect::<Vec<String>>(); break; }
+        if *arg == "--".to_string() { exec_args = args.step_by(index+1).collect::<Vec<String>>(); exec_args.remove(0); break; }
+
+        panic!("Argument n°{index}: {arg} not recognized!")
     }
 
-    Ok((exe_name, iterations, threaded, no_capture, exec_args))
+    Ok((exe_name, iterations, false, no_capture, exec_args)) // --threaded desactive
 }
 
 fn main() {
@@ -93,7 +95,6 @@ fn main() {
     }
 
     io::get_line("\n\rPress any key to continue...");
-
 }
 
 pub fn manual_entry() {
