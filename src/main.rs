@@ -102,7 +102,7 @@ fn main() {
             let mut count_results = 0;
             let mut count_stats = 0;
 
-            let (mut separator_results, mut separator_stats) = (vec![], vec![]);
+            let (mut separator_results, mut separator_stats) = (vec!["|".to_string()], vec!["|".to_string()]);
             let (mut results, mut stats) = (vec![], vec![]);
 
             /* Results collecting */
@@ -124,12 +124,12 @@ fn main() {
                 stats.push(format!("|{}|", math.1.join("|")));
             }
 
-            for header_result in 0..count_results {
-                separator_results.push(":---:|");
+            for _ in 0..count_results {
+                separator_results.push(":---:|".to_string());
             }
 
-            for header_stat in 0..count_stats {
-                separator_stats.push(":---:|");
+            for _ in 0..count_stats {
+                separator_stats.push(":---:|".to_string());
             }
 
             let results = results.join("\n\r");
