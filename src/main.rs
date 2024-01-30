@@ -47,7 +47,7 @@ fn parse_args() -> Result<(String, u32, bool, bool, bool, Vec<Vec<String>>), Str
         if index == 1 { exe_name = arg.clone(); continue; } // TODO : Verifier que le chemin existe bien
 
         if *arg == "--iterations".to_string() { _iterations_found = true; continue; }
-        if _iterations_found && !_iterations_complete { _iterations_complete = true; iterations = i32::from_str(arg.as_str()).unwrap() as u32 }
+        if _iterations_found && !_iterations_complete { _iterations_complete = true; iterations = i32::from_str(arg.as_str()).unwrap() as u32; continue; }
 
         if *arg == "--threaded".to_string() { panic!("De-activated argument --threaded for inaccuracy"); /*threaded = true; continue;*/ }
 
